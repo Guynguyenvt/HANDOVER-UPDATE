@@ -1,4 +1,4 @@
-window.INITIAL_HANDOVER_DATA = {
+{
   "source": "HANDOVER & UPDATE.xlsx",
   "generatedAt": "2026-07-11T03:39:37",
   "handoverLogo": "assets/Handover.jpg",
@@ -668,4 +668,4 @@ window.INITIAL_HANDOVER_DATA = {
       ]
     }
   ]
-};
+}

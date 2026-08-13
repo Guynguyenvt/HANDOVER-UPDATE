@@ -1,16 +1,64 @@
-{
-  "name": "Handover & Update",
-  "short_name": "Handover",
-  "start_url": "index.html",
-  "display": "standalone",
-  "scope": "./",
-  "background_color": "#f4f7fb",
-  "theme_color": "#111821",
-  "icons": [
-    {
-      "src": "assets/Handover.jpg",
-      "sizes": "192x192",
-      "type": "image/jpeg"
-    }
-  ]
-}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#111821" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Handover" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Handover & Update</title>
+    <link rel="apple-touch-icon" href="assets/Handover.jpg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="handoverLogo" alt="Handover" />
+        <div>
+          <h1>Handover & Update</h1>
+          <p id="sourceName"></p>
+        </div>
+      </div>
+      <nav id="sheetNav" aria-label="Sheets"></nav>
+    </aside>
+
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Dashboard</p>
+          <h2 id="viewTitle">CASINO OPERATIONS</h2>
+        </div>
+        <div class="filters">
+          <label>
+            Month
+            <select id="monthFilter"></select>
+          </label>
+          <label>
+            Year
+            <select id="yearFilter"></select>
+          </label>
+          <button id="backupData" class="icon-button secondary" title="Backup data">Backup</button>
+          <button id="restoreData" class="icon-button secondary" title="Restore data">Restore</button>
+          <button id="resetData" class="icon-button" title="Reset data">Reset</button>
+          <input id="restoreFile" type="file" accept="application/json,.json" hidden />
+        </div>
+      </header>
+
+      <section id="dashboard" class="dashboard"></section>
+      <section id="detailView" class="detail-view"></section>
+    </main>
+
+    <template id="sheetCardTemplate">
+      <button class="sheet-card" type="button">
+        <img alt="" />
+        <span class="sheet-card-title"></span>
+        <strong class="sheet-card-count"></strong>
+      </button>
+    </template>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
