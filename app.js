@@ -12,6 +12,8 @@ const FIELD_MAPPINGS = [
   { sheet: "Mass & VIP Program", table: "ACTIVE SHUFFLE", column: "Shuffle Type", settingColumn: "Shuffle Type" },
   { sheet: "Patron Management", column: "Patron", settingColumn: "VIP Patron" },
   { sheet: "Patron Management", column: "Form", settingColumn: "Form of Patron" },
+  { sheet: "Patron Management", column: "Location", settingColumn: "Location" },
+  { sheet: "Patron Management", column: "Status", settingColumn: "Status" },
   { sheet: "Equipment", column: "Equipment", settingColumn: "Equipment" },
   { sheet: "Equipment", column: "Location", settingColumn: "Location" },
   { sheet: "Equipment", column: "Status", settingColumn: "Status" },
