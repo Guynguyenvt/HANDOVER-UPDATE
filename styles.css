@@ -194,6 +194,30 @@ textarea {
   border: 1px solid var(--line);
 }
 
+.status-toast {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 10;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #111821;
+  color: #fff;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.status-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .dashboard {
   min-width: 0;
   display: grid;
@@ -323,6 +347,7 @@ td.date-cell {
 }
 
 td input,
+td select,
 td textarea,
 .editable-text {
   width: 100%;
@@ -347,6 +372,7 @@ td textarea {
 }
 
 td input:focus,
+td select:focus,
 td textarea:focus,
 .editable-text:focus {
   border-color: var(--blue);
@@ -474,7 +500,7 @@ td textarea:focus,
   }
 
   .filters .icon-button {
-    grid-column: span 2;
+    width: 100%;
   }
 
   .quick-panel label:last-of-type {

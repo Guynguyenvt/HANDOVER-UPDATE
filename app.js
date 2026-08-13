@@ -3,6 +3,21 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const DATE_COLUMNS = new Set(["Date", "Active Date"]);
 const MULTILINE_COLUMNS = new Set(["Content", "Description"]);
 const DASHBOARD_TITLE = "CASINO OPERATIONS";
+const FIELD_MAPPINGS = [
+  { sheet: "Daily Briefing", column: "Location", settingColumn: "Location" },
+  { sheet: "Daily Briefing", column: "Pit", settingColumn: "Location" },
+  { sheet: "Mass & VIP Program", table: "ACTIVE PROGRAMS", column: "VIP Room", settingColumn: "VIP ITO" },
+  { sheet: "Mass & VIP Program", table: "ACTIVE PROGRAMS", column: "ITO Rep", settingColumn: "ITO Rep" },
+  { sheet: "Mass & VIP Program", table: "ACTIVE SHUFFLE", column: "Location", settingColumn: "VIP ITO" },
+  { sheet: "Mass & VIP Program", table: "ACTIVE SHUFFLE", column: "Shuffle Type", settingColumn: "Shuffle Type" },
+  { sheet: "Patron Management", column: "Patron", settingColumn: "VIP Patron" },
+  { sheet: "Patron Management", column: "Form", settingColumn: "Form of Patron" },
+  { sheet: "Equipment", column: "Equipment", settingColumn: "Equipment" },
+  { sheet: "Equipment", column: "Location", settingColumn: "Location" },
+  { sheet: "Equipment", column: "Status", settingColumn: "Status" },
+  { sheet: "SOP Update", column: "Game", settingColumn: "Game" },
+  { sheet: "SOP Update", column: "SOP Form", settingColumn: "SOP Form" }
+];
 
 let appData = loadData();
 let activeSheet = "Dashboard";
@@ -13,15 +28,24 @@ const detailView = document.querySelector("#detailView");
 const viewTitle = document.querySelector("#viewTitle");
 const monthFilter = document.querySelector("#monthFilter");
 const yearFilter = document.querySelector("#yearFilter");
+const restoreFile = document.querySelector("#restoreFile");
 
 document.querySelector("#handoverLogo").src = appData.handoverLogo;
 document.querySelector("#sourceName").textContent = appData.source;
+document.querySelector("#backupData").addEventListener("click", backupData);
+document.querySelector("#restoreData").addEventListener("click", () => restoreFile.click());
+restoreFile.addEventListener("change", restoreData);
 document.querySelector("#resetData").addEventListener("click", () => {
   localStorage.removeItem(STORE_KEY);
   appData = structuredClone(window.INITIAL_HANDOVER_DATA);
   activeSheet = "Dashboard";
   render();
+  showStatus("Data reset");
 });
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 function loadData() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -30,6 +54,56 @@ function loadData() {
 
 function saveData() {
   localStorage.setItem(STORE_KEY, JSON.stringify(appData));
+}
+
+function backupData() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const payload = JSON.stringify(appData, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `handover-backup-${stamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showStatus("Backup file created");
+}
+
+function restoreData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!imported || !Array.isArray(imported.sheets)) throw new Error("Invalid backup");
+      appData = imported;
+      saveData();
+      activeSheet = "Dashboard";
+      render();
+      showStatus("Backup restored");
+    } catch {
+      showStatus("Could not restore this file");
+    } finally {
+      restoreFile.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showStatus(message) {
+  let status = document.querySelector(".status-toast");
+  if (!status) {
+    status = document.createElement("div");
+    status.className = "status-toast";
+    document.body.appendChild(status);
+  }
+  status.textContent = message;
+  status.classList.add("show");
+  window.clearTimeout(showStatus.timer);
+  showStatus.timer = window.setTimeout(() => status.classList.remove("show"), 2200);
 }
 
 function allRows(sheet) {
@@ -64,6 +138,39 @@ function matchesFilters(row) {
 
 function filteredRows(sheet) {
   return allRows(sheet).filter(({ row }) => matchesFilters(row));
+}
+
+function settingRows() {
+  const settingSheet = appData.sheets.find((sheet) => sheet.name === "Setting");
+  return settingSheet ? settingSheet.tables.flatMap((table) => table.rows) : [];
+}
+
+function settingOptions(settingColumn) {
+  const values = settingRows()
+    .map((row) => row[settingColumn])
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== "")
+    .map((value) => String(value).trim());
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function mappedSettingColumn(sheetName, tableTitle, column) {
+  const mapping = FIELD_MAPPINGS.find((item) => {
+    return item.sheet === sheetName && item.column === column && (!item.table || item.table === tableTitle);
+  });
+  return mapping ? mapping.settingColumn : "";
+}
+
+function isMappedField(sheetName, tableTitle, column) {
+  return mappedSettingColumn(sheetName, tableTitle, column) !== "";
+}
+
+function optionsForField(sheetName, tableTitle, column, currentValue = "") {
+  const settingColumn = mappedSettingColumn(sheetName, tableTitle, column);
+  if (!settingColumn) return [];
+  const options = settingOptions(settingColumn);
+  const current = String(currentValue || "").trim();
+  if (current && !options.includes(current)) options.unshift(current);
+  return options;
 }
 
 function setupFilters() {
@@ -209,18 +316,22 @@ function renderTable(sheet, table) {
       const td = document.createElement("td");
       td.className = DATE_COLUMNS.has(column) ? "date-cell" : "text-cell";
       if (MULTILINE_COLUMNS.has(column)) td.className += " long-cell";
-      const field = DATE_COLUMNS.has(column) ? document.createElement("input") : document.createElement("div");
-      if (!DATE_COLUMNS.has(column)) {
+      const options = optionsForField(sheet.name, table.title, column, row[column]);
+      const field = createField(column, row[column], options);
+      if (field.classList.contains("editable-text")) {
         field.className = "editable-text";
         field.contentEditable = "true";
         field.setAttribute("role", "textbox");
         field.setAttribute("aria-label", column);
       }
-      field.value = row[column] ?? "";
-      if (!DATE_COLUMNS.has(column)) field.textContent = row[column] ?? "";
-      field.type = DATE_COLUMNS.has(column) ? "date" : "text";
       field.addEventListener("input", () => {
-        row[column] = DATE_COLUMNS.has(column) ? field.value : field.textContent;
+        row[column] = fieldValue(field);
+        syncDateParts(row, column);
+        saveData();
+        setupFilters();
+      });
+      field.addEventListener("change", () => {
+        row[column] = fieldValue(field);
         syncDateParts(row, column);
         saveData();
         setupFilters();
@@ -248,10 +359,14 @@ function quickPanel(sheet, table) {
   panel.className = "quick-panel";
   const columns = table.columns.filter((column) => !["Year", "Month"].includes(column));
   const dateColumn = columns.find((column) => DATE_COLUMNS.has(column)) || columns[0];
-  const mainColumns = columns.filter((column) => column !== dateColumn).slice(0, 3);
-  const chosenColumns = [dateColumn, ...mainColumns];
+  const mappedColumns = columns.filter((column) => column !== dateColumn && isMappedField(sheet.name, table.title, column));
+  const detailColumns = columns.filter((column) => column !== dateColumn && MULTILINE_COLUMNS.has(column));
+  const otherColumns = columns.filter((column) => {
+    return column !== dateColumn && !mappedColumns.includes(column) && !detailColumns.includes(column);
+  });
+  const chosenColumns = [...new Set([dateColumn, ...mappedColumns, ...detailColumns, ...otherColumns.slice(0, 2)])];
   panel.innerHTML = chosenColumns
-    .map((column) => fieldMarkup(column))
+    .map((column) => fieldMarkup(sheet.name, table.title, column))
     .join("");
   panel.innerHTML += `<button class="small-button" type="submit">Update</button>`;
   panel.addEventListener("submit", (event) => {
@@ -269,10 +384,50 @@ function quickPanel(sheet, table) {
   return panel;
 }
 
-function fieldMarkup(column) {
+function createField(column, value, options) {
+  if (DATE_COLUMNS.has(column)) {
+    const input = document.createElement("input");
+    input.type = "date";
+    input.value = value ?? "";
+    return input;
+  }
+  if (options.length) {
+    const select = document.createElement("select");
+    select.innerHTML = `<option value=""></option>${options
+      .map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`)
+      .join("")}`;
+    select.value = value ?? "";
+    return select;
+  }
+  const div = document.createElement("div");
+  div.className = "editable-text";
+  div.textContent = value ?? "";
+  return div;
+}
+
+function fieldValue(field) {
+  return field.classList.contains("editable-text") ? field.textContent : field.value;
+}
+
+function fieldMarkup(sheetName, tableTitle, column) {
   const type = DATE_COLUMNS.has(column) ? "date" : "text";
+  const options = optionsForField(sheetName, tableTitle, column);
+  if (options.length) {
+    return `<label>${column}<select name="${column}"><option value=""></option>${options
+      .map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`)
+      .join("")}</select></label>`;
+  }
   const tag = MULTILINE_COLUMNS.has(column) ? "textarea" : `input type="${type}"`;
   return `<label>${column}<${tag} name="${column}"></${MULTILINE_COLUMNS.has(column) ? "textarea" : "input"}></label>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function addBlankRow(table) {

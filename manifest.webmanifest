@@ -3,6 +3,7 @@
   "short_name": "Handover",
   "start_url": "index.html",
   "display": "standalone",
+  "scope": "./",
   "background_color": "#f4f7fb",
   "theme_color": "#111821",
   "icons": [
